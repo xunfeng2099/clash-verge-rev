@@ -32,6 +32,8 @@ import { showNotice } from "@/services/noticeService";
 import { NoticeManager } from "@/components/base/NoticeManager";
 import { useLocalStorage } from "foxact/use-local-storage";
 import { LogLevel } from "@/hooks/use-log-data";
+import { useAutoExit } from "@/hooks/use-auto-exit";
+import { StartupVerification } from "@/components/startup/startup-verification";
 
 const appWindow = getCurrentWebviewWindow();
 export let portableFlag = false;
@@ -164,6 +166,14 @@ const Layout = () => {
   const { addListener, setupCloseListener } = useListen();
   const initRef = useRef(false);
   const [themeReady, setThemeReady] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
+
+  useAutoExit(isVerified);
+
+  const handleVerificationComplete = () => {
+    setIsVerified(true);
+    console.log("启动验证完成，应用正常启动");
+  };
 
   useEffect(() => {
     setThemeReady(true);
@@ -389,7 +399,7 @@ const Layout = () => {
         return unlisten;
       } catch (err) {
         console.error("[Layout] 监听启动完成事件失败:", err);
-        return () => {};
+        return () => { };
       }
     };
 
@@ -420,7 +430,7 @@ const Layout = () => {
       if (!isInitialized) {
         console.error("[Layout] 紧急初始化触发：5秒内未完成初始化");
         removeLoadingOverlay();
-        notifyBackend("UI就绪").catch(() => {});
+        notifyBackend("UI就绪").catch(() => { });
         isInitialized = true;
       }
     }, 5000);
@@ -499,6 +509,10 @@ const Layout = () => {
     >
       <ThemeProvider theme={theme}>
         <NoticeManager />
+        <StartupVerification
+          open={!isVerified}
+          onVerificationComplete={handleVerificationComplete}
+        />
         <div
           style={{
             animation: "fadeIn 0.5s",
@@ -520,6 +534,8 @@ const Layout = () => {
           style={{
             borderTopLeftRadius: "0px",
             borderTopRightRadius: "0px",
+            opacity: isVerified ? 1 : 0,
+            pointerEvents: isVerified ? "auto" : "none",
           }}
           onContextMenu={(e) => {
             if (
@@ -536,11 +552,11 @@ const Layout = () => {
             ({ palette }) => ({ bgcolor: palette.background.paper }),
             OS === "linux"
               ? {
-                  borderRadius: "8px",
-                  border: "1px solid var(--divider-color)",
-                  width: "100vw",
-                  height: "100vh",
-                }
+                borderRadius: "8px",
+                border: "1px solid var(--divider-color)",
+                width: "100vw",
+                height: "100vh",
+              }
               : {},
           ]}
         >
